@@ -91,15 +91,15 @@ const getMovies = asyncHandler(async (req, res) => {
 // @route GET /api/discover/movies/genre
 // @access private
 const getMovieGenres = asyncHandler(async (req, res) => {
-  const genres = await MovieGenre.find({}, { _id: 0, id: '$_id', name: 1 })
+  const genresMovies = await MovieGenre.find({}, { _id: 0, id: '$_id', name: 1 })
 
-  if (genres) {
+  if (genresMovies) {
     res.json({
-      genres: genres 
+      genres: genresMovies 
     })
   } else {
     res.status(404)
-    throw new Error('User not Found')
+    throw new Error('Genres not Found')
   }
 })
 
@@ -136,17 +136,68 @@ const getTVshows = asyncHandler(async (req, res) => {
 // @route GET /api/discover/tv/genre
 // @access private
 const getTVGenres = asyncHandler(async (req, res) => {
-  const genres = await TVGenre.find({}, { _id: 0, id: '$_id', name: 1 })
+  const genresTV = await TVGenre.find({}, { _id: 0, id: '$_id', name: 1 })
 
-  if (genres) {
+  if (genresTV) {
     res.json({
-      genres: genres 
+      genres: genresTV 
     })
   } else {
     res.status(404)
-    throw new Error('User not Found')
+    throw new Error('Genres not Found')
   }
 })
+
+// @desc GET TV Shows depend on genre
+// @route GET /api/discover/tv/:genreId
+// @access private
+const getTVShowsByGenre = asyncHandler(async (req, res) => {
+  const genreId = req.params.genreId;  // Assuming genre ID is passed as a route parameter
+  const page = parseInt(req.query.page) || 1;
+  const limit = 20;
+
+  const startIndex = (page - 1) * limit;
+
+  const totalTVShows = await TVShow.countDocuments({ genre_ids: genreId });
+  const totalPages = Math.ceil(totalTVShows / limit);
+
+  const tvShows = await TVShow.find({ genre_ids: genreId }, { _id: 0, id: '$_id', adult: 1, backdrop_path: 1, name: 1, original_language: 1, original_name: 1, overview: 1, poster_path: 1, media_type: 1, genre_ids: 1, popularity: 1, first_air_date: 1, vote_average: 1, vote_count: 1, origin_country: 1 })
+    .skip(startIndex)
+    .limit(limit);
+
+  res.json({
+    page,
+    total_pages: totalPages,
+    total_results: totalTVShows,
+    results: tvShows,
+  });
+});
+
+// @desc GET Movies depend on genre
+// @route GET /api/discover/movie/:genreId
+// @access private
+const getMoviesByGenre = asyncHandler(async (req, res) => {
+  const genreId = req.params.genreId;
+  const page = parseInt(req.query.page) || 1;
+  const limit = 20;
+
+  const startIndex = (page - 1) * limit;
+
+  const totalMovies = await Movie.countDocuments({ genre_ids: genreId });
+  const totalPages = Math.ceil(totalMovies / limit);
+
+  const movies = await Movie.find({ genre_ids: genreId }, { _id: 0, id: '$_id', adult: 1, backdrop_path: 1, title: 1, original_language: 1, original_title: 1, overview: 1, poster_path: 1, media_type: 1, genre_ids: 1, popularity: 1, release_date: 1, video: 1, vote_average: 1, vote_count: 1 })
+    .skip(startIndex)
+    .limit(limit);
+
+  res.json({
+    page,
+    total_pages: totalPages,
+    total_results: totalMovies,
+    results: movies,
+  });
+});
+
 
 
 
@@ -155,5 +206,7 @@ export {
   getMovieGenres,
   getMovies,
   getTVGenres,
-  getTVshows
+  getTVshows,
+  getTVShowsByGenre,
+  getMoviesByGenre
 }
