@@ -2,6 +2,61 @@ import asyncHandler from 'express-async-handler'
 import Movie from '../models/Movie.js'
 import MovieGenre from '../models/MovieGenre.js'
 import TVGenre from '../models/TVGenre.js';
+import TVShow from '../models/TVShow.js';
+
+// @desc GET all
+// @route GET /api/discover/all
+// @access private
+const getDiscoverData = asyncHandler(async (req, res) => {
+  const page = parseInt(req.query.page) || 1;
+  const limit = 20;
+
+  const startIndex = (page - 1) * limit;
+
+  const movieTotal = await Movie.countDocuments();
+  const totalPagesMovie = Math.ceil(movieTotal / limit);
+  const movies = await Movie.find({}, { _id: 0, id: '$_id', adult: 1, backdrop_path: 1, title: 1, original_language: 1, original_title: 1, overview: 1, poster_path: 1, media_type: 1, genre_ids: 1, popularity: 1, release_date: 1, video: 1, vote_average: 1, vote_count: 1 }).skip(startIndex).limit(limit);
+
+  const tvShowTotal = await TVShow.countDocuments();
+  const totalPagesTVShow = Math.ceil(tvShowTotal / limit);
+  const tvShows = await TVShow.find({}, { _id: 0, id: '$_id', adult: 1, backdrop_path: 1, name: 1, original_language: 1, original_name: 1, overview: 1, poster_path: 1, media_type: 1, genre_ids: 1, popularity: 1, first_air_date: 1, vote_average: 1, vote_count: 1, origin_country: 1 }).skip(startIndex).limit(limit);
+
+  const mappedTVShows = tvShows.map(tvShow => ({
+    adult: tvShow.adult,
+    backdrop_path: tvShow.backdrop_path,
+    title: tvShow.name,
+    original_language: tvShow.original_language,
+    original_title: tvShow.original_name,
+    overview: tvShow.overview,
+    poster_path: tvShow.poster_path,
+    media_type: tvShow.media_type,
+    genre_ids: tvShow.genre_ids,
+    popularity: tvShow.popularity,
+    release_date: tvShow.first_air_date,
+    video: undefined, // Not present in TV shows
+    vote_average: tvShow.vote_average,
+    vote_count: tvShow.vote_count,
+  }));
+
+  const allMovies = [...movies, ...mappedTVShows];
+
+  const sortedAllMovies = allMovies.sort((a, b) => {
+    const dateA = new Date(a.release_date);
+    const dateB = new Date(b.release_date);
+    return dateB - dateA;
+  });
+
+  const results = {
+    total_results: movieTotal + tvShowTotal,
+    total_pages: totalPagesMovie + totalPagesTVShow,
+    page,
+    results: sortedAllMovies,
+  };
+
+  res.json(results);
+});
+
+
 
 // @desc GET moviess
 // @route GET /api/discover/movie
@@ -58,10 +113,10 @@ const getTVshows = asyncHandler(async (req, res) => {
   const startIndex = (page - 1) * limit;
   const endIndex = page * limit;
 
-  const totalTVShow = await Movie.countDocuments();
+  const totalTVShow = await TVShow.countDocuments();
   const totalPages = Math.ceil(totalTVShow / limit);
 
-  const tvshows = await Movie.find({}, { _id: 0, id: '$_id', adult: 1, backdrop_path: 1, name: 1, original_language: 1, original_name: 1, overview: 1, poster_path: 1, media_type: 1, genre_ids: 1, popularity: 1, first_air_date: 1, vote_average: 1, vote_count: 1, origin_country: 1}).skip(startIndex).limit(limit);
+  const tvshows = await TVShow.find({}, { _id: 0, id: '$_id', adult: 1, backdrop_path: 1, name: 1, original_language: 1, original_name: 1, overview: 1, poster_path: 1, media_type: 1, genre_ids: 1, popularity: 1, first_air_date: 1, vote_average: 1, vote_count: 1, origin_country: 1}).skip(startIndex).limit(limit);
 
   if (tvshows) {
     const results = {
@@ -96,6 +151,7 @@ const getTVGenres = asyncHandler(async (req, res) => {
 
 
 export {
+  getDiscoverData,
   getMovieGenres,
   getMovies,
   getTVGenres,
